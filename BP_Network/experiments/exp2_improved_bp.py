@@ -1,5 +1,5 @@
 """
-实验2: 改进BP神经网络
+实验2: 改进BP神经网络 (使用标准MNIST数据集)
 在基本BP网络基础上添加交叉熵损失和L2正则化，与基本模型进行对比
 """
 import sys
@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import json
-from dataset.data_loader import LocalDataLoader, DataPreprocessor
+from dataset.data_loader import load_dataset, DataPreprocessor
 from models.basic_bp import BasicBPNetwork
 from models.improved_bp import ImprovedBPNetwork
 from utils.metrics import Metrics, Visualizer, ModelComparator
@@ -22,13 +22,7 @@ def main():
     
     # ===== Data Loading and Preprocessing =====
     print("\n[1/4] Loading and preprocessing data...")
-    loader = LocalDataLoader(DATA_ROOT, img_size=IMG_SIZE)
-    X_train, y_train, X_val, y_val, X_test, y_test = loader.load_data(
-        train_per_class=TRAIN_PER_CLASS,
-        val_per_class=VAL_PER_CLASS,
-        test_per_class=TEST_PER_CLASS,
-        stratified=USE_STRATIFIED_SAMPLING
-    )
+    X_train, y_train, X_val, y_val, X_test, y_test = load_dataset(use_mnist=USE_MNIST)
     
     print(f"  训练集: {X_train.shape}")
     print(f"  验证集: {X_val.shape}")

@@ -8,6 +8,13 @@ from typing import Tuple
 import pickle
 import gzip
 
+try:
+    from torchvision import datasets, transforms
+    import torch
+    TORCHVISION_AVAILABLE = True
+except ImportError:
+    TORCHVISION_AVAILABLE = False
+
 
 class LocalDataLoader:
     """本地手写数字数据集加载器（BMP格式）"""
@@ -140,6 +147,122 @@ class MNISTDataLoader:
         return X_train, y_train, X_val, y_val, X_test, y_test
 
 
+class TorchvisionMNISTLoader:
+    """标准MNIST数据集加载器 - 使用torchvision直接从互联网下载"""
+    
+    @staticmethod
+    def load_data(download_dir: str = './data', 
+                  val_split: float = 0.2) -> Tuple[np.ndarray, np.ndarray, 
+                                                     np.ndarray, np.ndarray,
+                                                     np.ndarray, np.ndarray]:
+        """
+        从torchvision加载标准MNIST数据集
+        
+        Args:
+            download_dir: 数据集下载和保存目录
+            val_split: 从训练集中分离的验证集比例（默认20%）
+            
+        Returns:
+            (X_train, y_train), (X_val, y_val), (X_test, y_test)
+            其中X为(N, 784)的数组，y为(N,)的标签数组
+            
+        说明：
+            - 原始MNIST训练集：60,000张图片
+            - 原始MNIST测试集：10,000张图片
+            - 分割后：训练集48,000张 + 验证集12,000张 + 测试集10,000张
+        """
+        if not TORCHVISION_AVAILABLE:
+            raise ImportError("torchvision is required. Install it with: pip install torchvision")
+        
+        # 创建下载目录
+        os.makedirs(download_dir, exist_ok=True)
+        
+        # 定义图片转换：转换为numpy数组并归一化
+        to_numpy = transforms.Compose([
+            transforms.ToTensor(),  # 转为[0,1]范围的张量
+        ])
+        
+        print("⏳ 下载MNIST训练集 (60,000张图片)...")
+        train_dataset = datasets.MNIST(root=download_dir, train=True, 
+                                       download=True, transform=to_numpy)
+        
+        print("⏳ 下载MNIST测试集 (10,000张图片)...")
+        test_dataset = datasets.MNIST(root=download_dir, train=False,
+                                      download=True, transform=to_numpy)
+        
+        # 转换为numpy数组
+        X_train_full = np.array([img[0].numpy().flatten() for img in train_dataset])
+        y_train_full = np.array([label for _, label in train_dataset])
+        
+        X_test = np.array([img[0].numpy().flatten() for img in test_dataset])
+        y_test = np.array([label for _, label in test_dataset])
+        
+        # 从训练集分割出验证集
+        n_train = len(X_train_full)
+        n_val = int(n_train * val_split)
+        
+        # 确保验证集中每个类别有足够的样本
+        indices = np.arange(n_train)
+        np.random.shuffle(indices)
+        
+        val_indices = indices[:n_val]
+        train_indices = indices[n_val:]
+        
+        X_train = X_train_full[train_indices]
+        y_train = y_train_full[train_indices]
+        
+        X_val = X_train_full[val_indices]
+        y_val = y_train_full[val_indices]
+        
+        print(f"✅ MNIST数据加载完成！")
+        print(f"   训练集: {X_train.shape[0]:,}张 ({X_train.shape})")
+        print(f"   验证集: {X_val.shape[0]:,}张 ({X_val.shape})")
+        print(f"   测试集: {X_test.shape[0]:,}张 ({X_test.shape})")
+        print(f"   像素范围: [{X_train.min():.3f}, {X_train.max():.3f}]")
+        
+        return X_train, y_train, X_val, y_val, X_test, y_test
+
+
+def load_dataset(use_mnist: bool = True,
+                 mnist_dir: str = './data',
+                 local_data_root: str = None,
+                 train_per_class: int = 88,
+                 val_per_class: int = 19,
+                 test_per_class: int = 19,
+                 stratified: bool = True) -> Tuple[np.ndarray, np.ndarray,
+                                                     np.ndarray, np.ndarray,
+                                                     np.ndarray, np.ndarray]:
+    """
+    便利函数：自动选择加载MNIST或本地数据集
+    
+    Args:
+        use_mnist: 如果True，加载标准MNIST；否则加载本地数据集
+        mnist_dir: MNIST下载目录（仅当use_mnist=True时有效）
+        local_data_root: 本地数据集根目录（仅当use_mnist=False时有效）
+        train_per_class: 每类训练样本数（仅当use_mnist=False时有效）
+        val_per_class: 每类验证样本数（仅当use_mnist=False时有效）
+        test_per_class: 每类测试样本数（仅当use_mnist=False时有效）
+        stratified: 是否使用分层抽样（仅当use_mnist=False时有效）
+        
+    Returns:
+        (X_train, y_train), (X_val, y_val), (X_test, y_test)
+    """
+    if use_mnist:
+        print("🔄 加载标准MNIST数据集...")
+        return TorchvisionMNISTLoader.load_data(download_dir=mnist_dir)
+    else:
+        print("🔄 加载本地数据集...")
+        if local_data_root is None:
+            raise ValueError("local_data_root must be specified when use_mnist=False")
+        loader = LocalDataLoader(local_data_root)
+        return loader.load_data(
+            train_per_class=train_per_class,
+            val_per_class=val_per_class,
+            test_per_class=test_per_class,
+            stratified=stratified
+        )
+
+
 class DataPreprocessor:
     """数据预处理工具"""
     
@@ -202,6 +325,9 @@ class DataPreprocessor:
 
 if __name__ == "__main__":
     # 测试本地数据加载器
+    print("="*70)
+    print("【Option 1】 本地小数据集加载")
+    print("="*70)
     data_root = "/Users/zhanghaozhe/Documents/VScode/Partern Recogniton/database/HandwrittenNum"
     loader = LocalDataLoader(data_root)
     
@@ -220,3 +346,29 @@ if __name__ == "__main__":
     
     print(f"\n标准化后像素值范围: [{X_train_norm.min()}, {X_train_norm.max()}]")
     print(f"One-hot编码形状: {y_train_onehot.shape}")
+    
+    # 测试MNIST加载器
+    print("\n" + "="*70)
+    print("【Option 2】 标准MNIST数据集加载 (推荐)")
+    print("="*70)
+    
+    mnist_loader = TorchvisionMNISTLoader()
+    X_train_mnist, y_train_mnist, X_val_mnist, y_val_mnist, X_test_mnist, y_test_mnist = \
+        mnist_loader.load_data(download_dir='./data')
+    
+    print(f"\nMNIST数据统计:")
+    print(f"  训练集: {X_train_mnist.shape}, 标签: {y_train_mnist.shape}")
+    print(f"  验证集: {X_val_mnist.shape}, 标签: {y_val_mnist.shape}")
+    print(f"  测试集: {X_test_mnist.shape}, 标签: {y_test_mnist.shape}")
+    print(f"  特征维度: {X_train_mnist.shape[1]}")
+    print(f"  像素值范围: [{X_train_mnist.min()}, {X_train_mnist.max()}]")
+    
+    # 与本地数据对比
+    print("\n" + "="*70)
+    print("数据规模对比")
+    print("="*70)
+    print(f"{'维度':<20} {'本地数据集':<20} {'标准MNIST':<20} {'倍数':<10}")
+    print("-"*70)
+    print(f"{'训练集样本数':<20} {X_train.shape[0]:<20} {X_train_mnist.shape[0]:<20} {X_train_mnist.shape[0]/X_train.shape[0]:.1f}x")
+    print(f"{'验证集样本数':<20} {X_val.shape[0]:<20} {X_val_mnist.shape[0]:<20} {X_val_mnist.shape[0]/X_val.shape[0]:.1f}x")
+    print(f"{'测试集样本数':<20} {X_test.shape[0]:<20} {X_test_mnist.shape[0]:<20} {X_test_mnist.shape[0]/X_test.shape[0]:.1f}x")

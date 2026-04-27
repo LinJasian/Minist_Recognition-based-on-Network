@@ -173,39 +173,46 @@ class BasicBPNetwork:
             avg_train_loss = train_loss / num_batches
             self.train_losses.append(avg_train_loss)
             
-            # 计算训练准确率
-            y_train_pred, _, _ = self.forward(X_train)
-            y_train_pred_labels = np.argmax(y_train_pred, axis=1)
-            y_train_labels = np.argmax(y_train, axis=1)
-            train_acc = np.mean(y_train_pred_labels == y_train_labels)
-            self.train_accs.append(train_acc)
+            # 只在每5个epoch或最后一个epoch评估完整准确率（加快训练）
+            eval_frequency = 5
+            is_last_epoch = (epoch == epochs - 1)
+            should_eval = ((epoch + 1) % eval_frequency == 0) or is_last_epoch
             
-            # 验证
-            y_val_pred, _, _ = self.forward(X_val)
-            val_loss = self.mse_loss(y_val, y_val_pred)
-            self.val_losses.append(val_loss)
-            
-            # 计算验证准确率
-            y_val_pred_labels = np.argmax(y_val_pred, axis=1)
-            y_val_labels = np.argmax(y_val, axis=1)
-            val_acc = np.mean(y_val_pred_labels == y_val_labels)
-            self.val_accs.append(val_acc)
-            
-            # 早停检查
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                patience_counter = 0
-            else:
-                patience_counter += 1
-            
-            if (epoch + 1) % 10 == 0:
+            if should_eval:
+                # 计算训练准确率
+                y_train_pred, _, _ = self.forward(X_train)
+                y_train_pred_labels = np.argmax(y_train_pred, axis=1)
+                y_train_labels = np.argmax(y_train, axis=1)
+                train_acc = np.mean(y_train_pred_labels == y_train_labels)
+                self.train_accs.append(train_acc)
+                
+                # 验证
+                y_val_pred, _, _ = self.forward(X_val)
+                val_loss = self.mse_loss(y_val, y_val_pred)
+                self.val_losses.append(val_loss)
+                
+                # 计算验证准确率
+                y_val_pred_labels = np.argmax(y_val_pred, axis=1)
+                y_val_labels = np.argmax(y_val, axis=1)
+                val_acc = np.mean(y_val_pred_labels == y_val_labels)
+                self.val_accs.append(val_acc)
+                
+                # 早停检查
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                
                 print(f"Epoch {epoch+1}/{epochs} - "
                       f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f}, "
                       f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
-            
-            if patience_counter >= early_stopping_patience:
-                print(f"\n早停触发: 在epoch {epoch+1}停止训练")
-                break
+                
+                if patience_counter >= early_stopping_patience:
+                    print(f"\n早停触发: 在epoch {epoch+1}停止训练")
+                    break
+            else:
+                print(f"Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f}")
     
     def predict(self, X: np.ndarray) -> np.ndarray:
         """

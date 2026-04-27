@@ -1,13 +1,13 @@
 """
-实验1: 基本BP神经网络
-训练基本BP网络，评估其在本地手写数字识别任务上的性能
+实验1: 基本BP神经网络 (使用标准MNIST数据集)
+训练基本BP网络，评估其在手写数字识别任务上的性能
 """
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-from dataset.data_loader import LocalDataLoader, DataPreprocessor
+from dataset.data_loader import load_dataset, DataPreprocessor
 from models.basic_bp import BasicBPNetwork
 from utils.metrics import Metrics, Visualizer, ModelComparator
 from utils.config import *
@@ -20,13 +20,7 @@ def main():
     
     # ===== Data Loading and Preprocessing =====
     print("\n[1/4] Loading and preprocessing data...")
-    loader = LocalDataLoader(DATA_ROOT, img_size=IMG_SIZE)
-    X_train, y_train, X_val, y_val, X_test, y_test = loader.load_data(
-        train_per_class=TRAIN_PER_CLASS,
-        val_per_class=VAL_PER_CLASS,
-        test_per_class=TEST_PER_CLASS,
-        stratified=USE_STRATIFIED_SAMPLING
-    )
+    X_train, y_train, X_val, y_val, X_test, y_test = load_dataset(use_mnist=USE_MNIST)
     
     print(f"  Training set: {X_train.shape}")
     print(f"  Validation set: {X_val.shape}")

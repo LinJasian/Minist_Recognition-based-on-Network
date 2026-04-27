@@ -1,5 +1,5 @@
 """
-实验3: 卷积神经网络（CNN）
+实验3: 卷积神经网络（CNN）(使用标准MNIST数据集)
 实现CNN模型，与BP网络进行对比
 """
 import sys
@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import json
-from dataset.data_loader import LocalDataLoader, DataPreprocessor
+from dataset.data_loader import load_dataset, DataPreprocessor
 from models.cnn_pytorch import SimpleCNN, CNNTrainer, create_data_loaders
 from utils.metrics import Metrics, Visualizer, ModelComparator
 from utils.config import *
@@ -21,24 +21,23 @@ def main():
     
     # ===== Data Loading and Preprocessing =====
     print("\n[1/4] Loading and preprocessing data...")
-    loader = LocalDataLoader(DATA_ROOT, img_size=IMG_SIZE)
-    X_train, y_train, X_val, y_val, X_test, y_test = loader.load_data(
-        train_per_class=TRAIN_PER_CLASS,
-        val_per_class=VAL_PER_CLASS,
-        test_per_class=TEST_PER_CLASS,
-        stratified=USE_STRATIFIED_SAMPLING
-    )
+    X_train, y_train, X_val, y_val, X_test, y_test = load_dataset(use_mnist=USE_MNIST)
     
-    print(f"  训练集: {X_train.shape}")
-    print(f"  验证集: {X_val.shape}")
-    print(f"  测试集: {X_test.shape}")
+    print(f"  ✓ 数据加载完成:")
+    print(f"    - 训练集: {X_train.shape}")
+    print(f"    - 验证集: {X_val.shape}")
+    print(f"    - 测试集: {X_test.shape}")
     
     # 预处理
+    print("  ├─ 归一化训练集...")
     X_train = DataPreprocessor.normalize(X_train, method='minmax')
+    print("  ├─ 归一化验证集...")
     X_val = DataPreprocessor.normalize(X_val, method='minmax')
+    print("  └─ 归一化测试集...")
     X_test = DataPreprocessor.normalize(X_test, method='minmax')
     
     # 创建数据加载器
+    print("\n  创建PyTorch数据加载器...")
     train_loader, val_loader = create_data_loaders(
         X_train, y_train,
         X_val, y_val,
@@ -50,24 +49,26 @@ def main():
     
     # ReLU版本
     print("\n  2.1) 训练CNN-ReLU版本...")
-    model_relu = SimpleCNN(activation='relu')
+    model_relu = SimpleCNN(activation='relu', input_size=28)
     trainer_relu = CNNTrainer(model_relu, learning_rate=CNN_CONFIG['learning_rate'])
     
     trainer_relu.train(
         train_loader, val_loader,
         epochs=CNN_CONFIG['epochs'],
-        early_stopping_patience=CNN_CONFIG['early_stopping_patience']
+        early_stopping_patience=CNN_CONFIG['early_stopping_patience'],
+        eval_frequency=CNN_CONFIG.get('eval_frequency', 3)
     )
     
     # Sigmoid版本
     print("\n  2.2) 训练CNN-Sigmoid版本...")
-    model_sigmoid = SimpleCNN(activation='sigmoid')
+    model_sigmoid = SimpleCNN(activation='sigmoid', input_size=28)
     trainer_sigmoid = CNNTrainer(model_sigmoid, learning_rate=CNN_CONFIG['learning_rate'])
     
     trainer_sigmoid.train(
         train_loader, val_loader,
         epochs=CNN_CONFIG['epochs'],
-        early_stopping_patience=CNN_CONFIG['early_stopping_patience']
+        early_stopping_patience=CNN_CONFIG['early_stopping_patience'],
+        eval_frequency=CNN_CONFIG.get('eval_frequency', 3)
     )
     
     # ===== 评估模型 =====
