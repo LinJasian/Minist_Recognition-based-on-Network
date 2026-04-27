@@ -1,0 +1,41 @@
+{
+    "comparison_type": "Inference Only - No Training",
+    "models": {
+        "bp_basic": {
+            "model_type": "BP-Basic",
+            "accuracy": 0.21578947368421053,
+            "f1_score": 0.16004273504273506
+        },
+        "bp_improved": {
+            "model_type": "BP-Improved",
+            "accuracy": 0.25263157894736843,
+            "f1_score": 0.15795253095011355
+        },
+        "cnn_relu": {
+            "model_type": "CNN-ReLU",
+            "accuracy": 0.8736842105263158,
+            "f1_score": 0.8701126044248146
+        }
+    },
+    "improvements": {
+        "bp_improved_vs_basic_%": 17.073170731707318,
+        "cnn_vs_basic_%": 304.8780487804878
+    },
+    "ranking": [
+        {
+            "rank": 1,
+            "model": "CNN-ReLU",
+            "accuracy": 0.8736842105263158
+        },
+        {
+            "rank": 2,
+            "model": "BP-Improved",
+            "accuracy": 0.25263157894736843
+        },
+        {
+            "rank": 3,
+            "model": "BP-Basic",
+            "accuracy": 0.21578947368421053
+        }
+    ]
+}
